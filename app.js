@@ -21,6 +21,7 @@ function toast(message) { const el = $('#toast'); el.textContent = message; el.c
 function renderSubmissions() { $('#submission-list').innerHTML = state.submissions.map((file) => `<span class="file-pill"><i>${escapeHtml(file.icon || 'DOC')}</i>${escapeHtml(file.name)}</span>`).join(''); }
 function showLesson(file) {
   state.lesson = file || { name: 'Unit 2 — Derivatives in motion', demo: true };
+  state.assets = null;
   $('#lesson-loaded').classList.add('show'); $('#lesson-loaded b').textContent = state.lesson.name;
   $('#lesson-label').textContent = 'Replace lesson material';
 }
@@ -89,13 +90,14 @@ function downloadAsset(type) {
   setTimeout(() => URL.revokeObjectURL(link.href), 500); toast(`${asset.name} downloaded`);
 }
 async function generateAssets() {
-  if (!state.diagnosed) return runDiagnostic();
-  if (!state.sessionId) return toast('Upload real files and run a live analysis before generating binary assets.');
+  if (!state.lesson?.file) return toast('Upload a real lesson file before generating lesson resources.');
   const status = $('#asset-status'); status.textContent = 'Creating deck, audio, practice and plan…';
   $('#asset-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
   document.querySelectorAll('.asset-card button').forEach((button) => { button.disabled = true; button.textContent = 'Creating…'; });
   try {
-    const data = await request('/api/assets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: state.sessionId }) });
+    const form = new FormData(); form.append('lesson', state.lesson.file);
+    if (state.sessionId) form.append('sessionId', state.sessionId);
+    const data = await request('/api/assets', { method: 'POST', body: form });
     state.assets = data.files; status.textContent = '4 materials ready'; toast('Your deck, MP3 recap, practice and plan are ready');
     document.querySelectorAll('.asset-card button').forEach((button) => { button.disabled = false; button.innerHTML = 'Download asset <b>↓</b>'; });
   } catch (error) {

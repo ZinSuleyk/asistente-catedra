@@ -193,17 +193,27 @@ async function deckBuffer(slides) {
   return pptx.write({ outputType: "nodebuffer" });
 }
 
-app.post("/api/assets", async (req, res, next) => {
+app.post("/api/assets", upload.single("lesson"), async (req, res, next) => {
+  let uploaded = [];
   try {
-    const session = sessions.get(req.body?.sessionId);
-    if (!session) return res.status(400).json({ error: "Run a diagnostic before generating teaching assets." });
+    const session = req.body?.sessionId ? sessions.get(req.body.sessionId) : null;
+    const lesson = req.file;
+    if (!session && !lesson) return res.status(400).json({ error: "Upload lesson material before generating teaching assets." });
+    if (lesson && !allowedLesson.has(extension(lesson.originalname))) return res.status(400).json({ error: "Lessons accept PDF, PPTX, TXT, or MD." });
     const client = requireOpenAI();
+    let source;
+    if (session) source = `Diagnostic: ${JSON.stringify(session.analysis)}`;
+    else {
+      const lessonUpload = await uploadForAnalysis(client, lesson, `lesson${extension(lesson.originalname)}`);
+      uploaded = [lessonUpload];
+      source = [{ role: "user", content: [{ type: "input_text", text: "Create a lesson-aligned resource set from this teacher's lesson material." }, { type: "input_file", file_id: lessonUpload.id }] }];
+    }
     const now = new Date().toISOString();
     const planResponse = await client.responses.create({
       model: process.env.OPENAI_ASSET_MODEL || "gpt-4o-mini",
       store: false,
-      instructions: `You create concise, editable classroom materials in Spanish from a diagnostic. Make 4-7 presentation slides, a 45-60 second audio recap, a contextual practice set in Markdown, and 1-5 review events. Every calendar start/end must be valid ISO 8601 timestamps after ${now}. Use no student names.`,
-      input: `Diagnostic: ${JSON.stringify(session.analysis)}`,
+      instructions: `You create concise, editable classroom materials in Spanish from teacher material. When a diagnostic is provided, target its identified learning need; otherwise, anchor all content to the lesson objectives. Make 4-7 presentation slides, a 45-60 second audio recap, a contextual practice set in Markdown, and 1-5 review events. Every calendar start/end must be valid ISO 8601 timestamps after ${now}. Use no student names.`,
+      input: source,
       text: { format: { type: "json_schema", name: "teaching_assets", strict: true, schema: assetSchema } },
     });
     const plan = JSON.parse(planResponse.output_text);
@@ -220,7 +230,9 @@ app.post("/api/assets", async (req, res, next) => {
         calendar: { name: "classroom-compass-review-plan.ics", type: "text/calendar", data: Buffer.from(calendarIcs(plan.calendar)).toString("base64") },
       },
     });
-  } catch (error) { next(error); }
+  } catch (error) { next(error); } finally {
+    if (uploaded.length) await deleteUploadedFiles(requireOpenAI(), uploaded).catch(() => undefined);
+  }
 });
 
 app.use((error, _req, res, _next) => {
