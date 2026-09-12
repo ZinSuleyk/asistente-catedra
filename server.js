@@ -4,6 +4,8 @@ import express from "express";
 import multer from "multer";
 import JSZip from "jszip";
 import pptxgen from "pptxgenjs";
+import PDFDocument from "pdfkit";
+import { PassThrough } from "node:stream";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -13,7 +15,7 @@ const upload = multer({
 });
 const sessions = new Map();
 const allowedLesson = new Set([".pdf", ".pptx", ".txt", ".md"]);
-const allowedSubmission = new Set([".pdf", ".txt", ".md"]);
+const allowedSubmission = new Set([".pdf"]);
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.static("."));
@@ -119,12 +121,11 @@ const diagnosticSchema = {
 
 const assetSchema = {
   type: "object", additionalProperties: false,
-  required: ["slides", "audioScript", "practiceMarkdown", "calendar"],
+  required: ["slides", "audioScript", "practiceMarkdown"],
   properties: {
     slides: { type: "array", minItems: 4, maxItems: 7, items: { type: "object", additionalProperties: false, required: ["title", "body"], properties: { title: { type: "string" }, body: { type: "array", minItems: 1, maxItems: 5, items: { type: "string" } } } } },
     audioScript: { type: "string", minLength: 20 },
     practiceMarkdown: { type: "string", minLength: 20 },
-    calendar: { type: "array", minItems: 1, maxItems: 5, items: { type: "object", additionalProperties: false, required: ["title", "start", "end", "description"], properties: { title: { type: "string" }, start: { type: "string" }, end: { type: "string" }, description: { type: "string" } } } },
   },
 };
 
@@ -161,7 +162,7 @@ app.post("/api/diagnose", upload.fields([{ name: "lesson", maxCount: 1 }, { name
     const submissions = req.files?.submissions || [];
     if (!lesson || !submissions.length) return res.status(400).json({ error: "Upload one lesson file and at least one student submission." });
     if (!allowedLesson.has(extension(lesson.originalname)) || submissions.some((file) => !allowedSubmission.has(extension(file.originalname)))) {
-      return res.status(400).json({ error: "Unsupported file type. Lessons accept PDF, PPTX, TXT, or MD. Student work accepts PDF, TXT, or MD." });
+      return res.status(400).json({ error: "Unsupported file type. Lessons accept PDF, PPTX, TXT, or MD. Student work accepts PDF." });
     }
     if (submissions.some((file) => file.size > 5 * 1024 * 1024)) return res.status(400).json({ error: "Each student submission must be 5 MB or smaller." });
 
@@ -187,11 +188,24 @@ app.post("/api/chat", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-function toIcsDate(iso) { return new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z"); }
-function icsEscape(value) { return String(value).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;"); }
-function calendarIcs(events) {
-  const stamp = toIcsDate(new Date().toISOString());
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Classroom Compass//ES", "CALSCALE:GREGORIAN", ...events.flatMap((event) => ["BEGIN:VEVENT", `UID:${crypto.randomUUID()}@classroom-compass`, `DTSTAMP:${stamp}`, `DTSTART:${toIcsDate(event.start)}`, `DTEND:${toIcsDate(event.end)}`, `SUMMARY:${icsEscape(event.title)}`, `DESCRIPTION:${icsEscape(event.description)}`, "END:VEVENT"]), "END:VCALENDAR", ""].join("\r\n");
+async function practicePdfBuffer(markdown) {
+  const document = new PDFDocument({ size: "LETTER", margin: 54, info: { Title: "Classroom Compass practice set", Author: "Classroom Compass" } });
+  const stream = new PassThrough();
+  const chunks = [];
+  stream.on("data", (chunk) => chunks.push(chunk));
+  const done = new Promise((resolve, reject) => { stream.on("end", resolve); stream.on("error", reject); });
+  document.pipe(stream);
+  document.fillColor("#0A1833").font("Helvetica-Bold").fontSize(19).text("Practice set", { underline: false });
+  document.moveDown(0.3).fillColor("#3478FF").font("Helvetica").fontSize(9).text("Classroom Compass");
+  document.moveDown(1).fillColor("#263653").font("Helvetica").fontSize(11);
+  for (const line of markdown.split(/\r?\n/)) {
+    const clean = line.replace(/^#{1,6}\s*/, "").replace(/^[-*]\s*/, "• ").replace(/^\d+\.\s*/, "");
+    if (!clean.trim()) { document.moveDown(0.45); continue; }
+    document.font(line.startsWith("#") ? "Helvetica-Bold" : "Helvetica").fontSize(line.startsWith("#") ? 14 : 11).text(clean, { lineGap: 4 });
+  }
+  document.end();
+  await done;
+  return Buffer.concat(chunks);
 }
 
 async function deckBuffer(slides) {
@@ -224,22 +238,21 @@ app.post("/api/assets", upload.single("lesson"), async (req, res, next) => {
     const source = session
       ? [{ type: "text", text: `Diagnostic: ${JSON.stringify(session.analysis)}` }]
       : [{ type: "text", text: "Create a lesson-aligned resource set from this teacher's lesson material." }, await filePart(lesson, "Lesson")];
-    const now = new Date().toISOString();
     const plan = JSON.parse(await routerText([
-      { role: "system", content: `You create concise, editable classroom materials in Spanish from teacher material. When a diagnostic is provided, target its identified learning need; otherwise, anchor all content to the lesson objectives. Make 4-7 presentation slides, a 45-60 second audio recap, a contextual practice set in Markdown, and 1-5 review events. Every calendar start/end must be valid ISO 8601 timestamps after ${now}. Use no student names. Return only valid JSON matching this schema: ${JSON.stringify(assetSchema)}` },
+      { role: "system", content: `You create concise, editable classroom materials in Spanish from teacher material. When a diagnostic is provided, target its identified learning need; otherwise, anchor all content to the lesson objectives. Make 4-7 presentation slides, a 45-60 second audio recap, and a contextual practice set in Markdown. Use no student names. Return only valid JSON matching this schema: ${JSON.stringify(assetSchema)}` },
       { role: "user", content: source },
     ]));
-    const [pptx, speech] = await Promise.all([
+    const [pptx, speech, practice] = await Promise.all([
       deckBuffer(plan.slides),
       routerRequest("/audio/speech", { model: process.env.OPENROUTER_TTS_MODEL || "mistralai/voxtral-mini-tts-2603", voice: process.env.OPENROUTER_TTS_VOICE || "en_paul_neutral", input: plan.audioScript, response_format: "mp3" }, true),
+      practicePdfBuffer(plan.practiceMarkdown),
     ]);
     const audio = Buffer.from(await speech.arrayBuffer());
     res.json({
       files: {
         pptx: { name: "classroom-compass-lesson.pptx", type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", data: pptx.toString("base64") },
         audio: { name: "classroom-compass-recap.mp3", type: "audio/mpeg", data: audio.toString("base64") },
-        practice: { name: "classroom-compass-practice.md", type: "text/markdown", data: Buffer.from(plan.practiceMarkdown).toString("base64") },
-        calendar: { name: "classroom-compass-review-plan.ics", type: "text/calendar", data: Buffer.from(calendarIcs(plan.calendar)).toString("base64") },
+        practice: { name: "classroom-compass-practice.pdf", type: "application/pdf", data: practice.toString("base64") },
       },
     });
   } catch (error) { next(error); }

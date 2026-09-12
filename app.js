@@ -1,8 +1,8 @@
 const $ = (selector) => document.querySelector(selector);
 const state = { lesson: null, submissions: [], diagnosed: false, sessionId: null, assets: null };
 const samples = [
-  { path: 'examples/entrega-ejemplo-1.md', name: 'Entrega ejemplo 1 · Fundamentos de la empresa.md', label: 'Student 1', icon: 'MD' },
-  { path: 'examples/entrega-ejemplo-2.md', name: 'Entrega ejemplo 2 · Objetivos y comprobantes.md', label: 'Student 2', icon: 'MD' }
+  { path: 'examples/entrega-ejemplo-1-fundamentos.pdf', name: 'Entrega ejemplo 1 · Fundamentos de la empresa.pdf', label: 'Student 1', icon: 'PDF' },
+  { path: 'examples/entrega-ejemplo-2-comprobantes.pdf', name: 'Entrega ejemplo 2 · Objetivos y comprobantes.pdf', label: 'Student 2', icon: 'PDF' }
 ];
 function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
 function toast(message) { const el = $('#toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3200); }
@@ -19,7 +19,7 @@ async function loadSamples() {
       const response = await fetch(sample.path);
       if (!response.ok) throw new Error('Example files could not be loaded.');
       const content = await response.blob();
-      return { ...sample, file: new File([content], sample.name, { type: 'text/markdown' }) };
+      return { ...sample, file: new File([content], sample.name, { type: 'application/pdf' }) };
     }));
     renderSubmissions();
     toast('2 example submissions loaded');
