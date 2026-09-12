@@ -77,7 +77,7 @@
               <div><p class="step">02 — STUDENT WORK</p><h2>Bring in their thinking.</h2></div>
               <button class="link-button" id="load-samples">Load 3 sample submissions</button>
             </div>
-            <p class="muted">Upload exit tickets, homework, or written responses. Student names stay private in this session.</p>
+            <p class="muted">Remove direct identifiers where possible. Files are sent to the configured analysis service only for this request, then deleted.</p>
             <label class="student-drop" for="student-files">
               <input id="student-files" type="file" multiple accept=".pdf,.txt,.md" />
               <span class="plus">+</span><b>Add student work</b><small>PDF, TXT or MD · up to 5 MB each</small>
@@ -102,27 +102,29 @@
 
         <section class="results hidden" id="results">
           <div class="result-head">
-            <div><p class="eyebrow"><span></span> CLASS DIAGNOSTIC <small>DEMO DATA</small></p><h2>Here’s the learning signal.</h2><p>Based on 3 sample submissions · Generated just now</p></div>
+            <div><p class="eyebrow"><span></span> CLASS DIAGNOSTIC <small id="diagnostic-mode">DEMO DATA</small></p><h2>Here’s the learning signal.</h2><p id="diagnostic-meta">Based on 3 sample submissions · Generated just now</p></div>
             <div class="result-actions"><button class="outline-btn" id="rerun">↻ Re-run analysis</button><button class="primary-btn compact" id="generate-assets">Create teaching assets <b>→</b></button></div>
           </div>
           <div class="signal-grid">
-            <article class="mastery-card dark-card"><p>CLASS MASTERY</p><div><strong>64</strong><span>%</span></div><small>Developing overall <b>↑ 8%</b> from last check-in</small><div class="spark-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-            <article class="priority-card"><div class="warning-mark">!</div><p>PRIORITY MISCONCEPTION</p><h3>Confusing <em>inside</em> and <em>outside</em> functions</h3><span class="affected"><i>SA</i><i>SB</i> 2 students affected</span><button class="text-arrow" id="focus-gap">See evidence →</button></article>
-            <article class="next-card"><p>RECOMMENDED NEXT MOVE</p><h3>Start with a visual<br />function-machine reset.</h3><p>Then move into paired, real-world rate-of-change practice.</p><button class="text-arrow" id="generate-from-card">Build the lesson →</button></article>
+            <article class="mastery-card dark-card"><p>CLASS MASTERY</p><div><strong id="class-mastery">64</strong><span>%</span></div><small id="mastery-label">Developing overall</small><div class="spark-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="priority-card"><div class="warning-mark">!</div><p>PRIORITY MISCONCEPTION</p><h3 id="misconception-title">Confusing <em>inside</em> and <em>outside</em> functions</h3><span class="affected" id="affected-students"><i>SA</i><i>SB</i> 2 students affected</span><button class="text-arrow" id="focus-gap">See evidence →</button></article>
+            <article class="next-card"><p>RECOMMENDED NEXT MOVE</p><h3 id="recommendation-title">Start with a visual<br />function-machine reset.</h3><p id="recommendation-detail">Then move into paired, real-world rate-of-change practice.</p><button class="text-arrow" id="generate-from-card">Build the lesson →</button></article>
           </div>
 
           <section class="matrix-panel panel">
             <div class="section-heading"><div><p class="step">SKILL SNAPSHOT</p><h2>Where the class is now.</h2></div><span class="legend"><i class="high"></i> Secure <i class="med"></i> Developing <i class="low"></i> Needs attention</span></div>
             <div class="skill-table">
               <div class="skill-row header-row"><span>Learning objective</span><span>Class mastery</span><span>Student A</span><span>Student B</span><span>Student C</span><span></span></div>
-              <div class="skill-row"><b>Identify composite functions</b><span><strong>83%</strong><i class="meter high"><u style="width:83%"></u></i></span><i class="cell secure">✓</i><i class="cell secure">✓</i><i class="cell developing">~</i><button aria-label="View identify composite functions">→</button></div>
-              <div class="skill-row"><b>Apply the chain rule</b><span><strong>51%</strong><i class="meter low"><u style="width:51%"></u></i></span><i class="cell developing">~</i><i class="cell critical">!</i><i class="cell critical">!</i><button aria-label="View apply chain rule">→</button></div>
-              <div class="skill-row"><b>Interpret derivative in context</b><span><strong>72%</strong><i class="meter med"><u style="width:72%"></u></i></span><i class="cell secure">✓</i><i class="cell developing">~</i><i class="cell developing">~</i><button aria-label="View interpret derivative">→</button></div>
+              <div id="skill-rows">
+                <div class="skill-row"><b>Identify composite functions</b><span><strong>83%</strong><i class="meter high"><u style="width:83%"></u></i></span><i class="cell secure">✓</i><i class="cell secure">✓</i><i class="cell developing">~</i><button aria-label="View identify composite functions">→</button></div>
+                <div class="skill-row"><b>Apply the chain rule</b><span><strong>51%</strong><i class="meter low"><u style="width:51%"></u></i></span><i class="cell developing">~</i><i class="cell critical">!</i><i class="cell critical">!</i><button aria-label="View apply chain rule">→</button></div>
+                <div class="skill-row"><b>Interpret derivative in context</b><span><strong>72%</strong><i class="meter med"><u style="width:72%"></u></i></span><i class="cell secure">✓</i><i class="cell developing">~</i><i class="cell developing">~</i><button aria-label="View interpret derivative">→</button></div>
+              </div>
             </div>
           </section>
 
           <section class="insight-grid">
-            <article class="misconception-panel panel" id="misconception-detail"><div class="section-heading"><div><p class="step">LOOK CLOSER</p><h2>The misconception, explained.</h2></div><span class="severity">HIGH PRIORITY</span></div><div class="quote"><span>“</span><p>Several students differentiate the outer function but leave the inner expression unchanged.</p></div><div class="root-cause"><b>Likely root cause</b><p>Students recognize the derivative rule, but don’t yet see a composite function as a sequence of transformations.</p></div><div class="affected-students"><b>Affected learners</b><span><i>SA</i> Student A</span><span><i>SB</i> Student B</span><button class="text-arrow" id="student-view">View individual insights →</button></div></article>
+            <article class="misconception-panel panel" id="misconception-detail"><div class="section-heading"><div><p class="step">LOOK CLOSER</p><h2>The misconception, explained.</h2></div><span class="severity">HIGH PRIORITY</span></div><div class="quote"><span>“</span><p id="misconception-evidence">Several students differentiate the outer function but leave the inner expression unchanged.</p></div><div class="root-cause"><b>Likely root cause</b><p id="root-cause">Students recognize the derivative rule, but don’t yet see a composite function as a sequence of transformations.</p></div><div class="affected-students" id="affected-students-detail"><b>Affected learners</b><span><i>SA</i> Student A</span><span><i>SB</i> Student B</span><button class="text-arrow" id="student-view">View individual insights →</button></div></article>
             <article class="teacher-note"><span class="note-star">✦</span><p class="step">A NOTE FOR YOU</p><h3>Don’t reteach the rule.<br /><em>Rebuild the picture.</em></h3><p>Use one color for the inner function and another for its change. Ask: “What changes first?” before asking students to calculate.</p><button id="copy-note">Copy teaching note</button></article>
           </section>
 
