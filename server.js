@@ -231,7 +231,7 @@ app.post("/api/assets", upload.single("lesson"), async (req, res, next) => {
     ]));
     const [pptx, speech] = await Promise.all([
       deckBuffer(plan.slides),
-      routerRequest("/audio/speech", { model: process.env.OPENROUTER_TTS_MODEL || "openai/gpt-4o-mini-tts-2025-12-15", voice: process.env.OPENROUTER_TTS_VOICE || "coral", input: plan.audioScript, response_format: "mp3", provider: { options: { openai: { instructions: "Habla en español con calidez, claridad y ritmo de repaso para un aula." } } } }, true),
+      routerRequest("/audio/speech", { model: process.env.OPENROUTER_TTS_MODEL || "mistralai/voxtral-mini-tts-2603", voice: process.env.OPENROUTER_TTS_VOICE || "en_paul_neutral", input: plan.audioScript, response_format: "mp3" }, true),
     ]);
     const audio = Buffer.from(await speech.arrayBuffer());
     res.json({
