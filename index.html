@@ -59,23 +59,18 @@
                 <span class="file-icon">↥</span>
                 <span><b id="lesson-label">Drop a PDF or PowerPoint here</b><small>or browse files · PDF, PPTX up to 20 MB</small></span>
               </label>
-              <button class="outline-btn" id="use-demo">Use sample lesson</button>
             </div>
             <div class="lesson-loaded" id="lesson-loaded">
               <span class="document-icon">▤</span>
-              <span><b>Unit 2 — Derivatives in motion</b><small>Sample lesson · 14 slides · objectives detected</small></span>
+              <span><b></b><small>Ready for resource generation and class analysis</small></span>
               <button id="clear-lesson" aria-label="Remove lesson">×</button>
-            </div>
-            <div class="objectives">
-              <span>Detected objectives</span>
-              <b>Apply the chain rule</b><b>Interpret rate of change</b><b>Model motion</b>
             </div>
           </section>
 
           <section class="submission-card panel">
             <div class="section-heading">
               <div><p class="step">02 — STUDENT WORK</p><h2>Bring in their thinking.</h2></div>
-              <button class="link-button" id="load-samples">Load 3 sample submissions</button>
+              <button class="link-button" id="load-samples">Load 2 example submissions</button>
             </div>
             <p class="muted">Remove direct identifiers where possible. Files are sent to the configured analysis service only for this request, then deleted.</p>
             <label class="student-drop" for="student-files">
@@ -142,12 +137,6 @@
       </main>
     </div>
 
-    <aside class="assistant-panel" aria-label="Compass assistant">
-      <div class="assistant-top"><div class="assistant-avatar">✦</div><div><b>Compass</b><span><i></i> Ready to help</span></div><button aria-label="Close assistant">×</button></div>
-      <div class="chat" id="chat"><div class="chat-bubble bot">I’m ready to help you turn today’s learning signals into a plan. <b>Try loading the sample submissions</b> to see how it works.</div></div>
-      <div class="suggestions"><button data-prompt="What are the largest gaps?">Largest gaps</button><button data-prompt="How should I reteach this?">Plan a reteach</button></div>
-      <form class="chat-input" id="chat-form"><input id="chat-text" aria-label="Ask Compass" placeholder="Ask about your class…" /><button aria-label="Send message">↑</button></form>
-    </aside>
     <div class="toast" id="toast" role="status"></div>
     <script src="app.js"></script>
   </body>
