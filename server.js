@@ -2,7 +2,7 @@ import "dotenv/config";
 import crypto from "node:crypto";
 import express from "express";
 import multer from "multer";
-import OpenAI, { toFile } from "openai";
+import JSZip from "jszip";
 import pptxgen from "pptxgenjs";
 
 const app = express();
@@ -12,7 +12,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024, files: 21 },
 });
 const sessions = new Map();
-const allowedLesson = new Set([".pdf", ".ppt", ".pptx", ".txt", ".md"]);
+const allowedLesson = new Set([".pdf", ".pptx", ".txt", ".md"]);
 const allowedSubmission = new Set([".pdf", ".txt", ".md"]);
 
 app.use(express.json({ limit: "2mb" }));
@@ -23,30 +23,68 @@ function extension(name) {
   return value === -1 ? "" : name.slice(value).toLowerCase();
 }
 
-function requireOpenAI() {
-  if (!process.env.OPENAI_API_KEY) {
-    const error = new Error("OPENAI_API_KEY is not configured. Copy .env.example to .env and add a project API key.");
+function requireOpenRouter() {
+  if (!process.env.OPENROUTER_API_KEY) {
+    const error = new Error("OPENROUTER_API_KEY is not configured. Paste your OpenRouter key in .env.");
     error.status = 503;
     throw error;
   }
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return process.env.OPENROUTER_API_KEY;
 }
 
 function publicError(error) {
-  if (error?.status === 429) return "OpenAI is rate limiting this project. Please try again shortly.";
-  if (error?.status === 401) return "The OpenAI API key was rejected. Check OPENAI_API_KEY.";
+  if (error?.status === 429) return "OpenRouter is rate limiting this project. Please try again shortly.";
+  if (error?.status === 401) return "The OpenRouter API key was rejected. Check OPENROUTER_API_KEY.";
   return error?.message || "The request could not be completed.";
 }
 
-async function uploadForAnalysis(client, file, filename) {
-  return client.files.create({
-    file: await toFile(file.buffer, filename, { type: file.mimetype }),
-    purpose: "user_data",
+async function routerRequest(path, body, raw = false) {
+  const response = await fetch(`https://openrouter.ai/api/v1${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${requireOpenRouter()}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": `http://localhost:${port}`,
+      "X-Title": "Classroom Compass",
+    },
+    body: JSON.stringify(body),
   });
+  if (!response.ok) {
+    const details = await response.json().catch(() => ({}));
+    const error = new Error(details?.error?.message || "OpenRouter could not complete the request.");
+    error.status = response.status;
+    throw error;
+  }
+  return raw ? response : response.json();
 }
 
-async function deleteUploadedFiles(client, files) {
-  await Promise.allSettled(files.map((file) => client.files.delete(file.id)));
+async function routerText(messages) {
+  const response = await routerRequest("/chat/completions", {
+    model: process.env.OPENROUTER_MODEL || "openrouter/auto",
+    messages,
+    response_format: { type: "json_object" },
+  });
+  const text = response.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenRouter returned an empty response.");
+  return text;
+}
+
+function xmlText(value) {
+  return value.replace(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g, "$1 ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+}
+
+async function filePart(file, label) {
+  const ext = extension(file.originalname);
+  if (ext === ".pdf") {
+    return { type: "file", file: { filename: `${label}.pdf`, file_data: `data:application/pdf;base64,${file.buffer.toString("base64")}` } };
+  }
+  if (ext === ".pptx" || ext === ".ppt") {
+    const zip = await JSZip.loadAsync(file.buffer);
+    const slideNames = Object.keys(zip.files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name)).sort();
+    const slides = await Promise.all(slideNames.map(async (name) => xmlText(await zip.file(name).async("text"))));
+    return { type: "text", text: `${label} presentation:\n${slides.map((slide, index) => `Slide ${index + 1}: ${slide}`).join("\n")}` };
+  }
+  return { type: "text", text: `${label}:\n${file.buffer.toString("utf8")}` };
 }
 
 const diagnosticSchema = {
@@ -90,15 +128,15 @@ const assetSchema = {
   },
 };
 
-function inputFiles(lesson, submissions) {
-  return [
-    { type: "input_text", text: "Lesson material:" },
-    { type: "input_file", file_id: lesson.id },
-    ...submissions.flatMap((submission, index) => [
-      { type: "input_text", text: `Student ${index + 1} submission:` },
-      { type: "input_file", file_id: submission.id },
-    ]),
+async function inputFiles(lesson, submissions) {
+  const parts = [
+    { type: "text", text: "Lesson material:" },
+    await filePart(lesson, "Lesson"),
   ];
+  for (const [index, submission] of submissions.entries()) {
+    parts.push({ type: "text", text: `Student ${index + 1} submission:` }, await filePart(submission, `Student ${index + 1}`));
+  }
+  return parts;
 }
 
 async function persistSession(session) {
@@ -114,11 +152,10 @@ async function persistSession(session) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ configured: Boolean(process.env.OPENAI_API_KEY), persistence: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
+  res.json({ configured: Boolean(process.env.OPENROUTER_API_KEY), persistence: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) });
 });
 
 app.post("/api/diagnose", upload.fields([{ name: "lesson", maxCount: 1 }, { name: "submissions", maxCount: 20 }]), async (req, res, next) => {
-  let uploaded = [];
   try {
     const lesson = req.files?.lesson?.[0];
     const submissions = req.files?.submissions || [];
@@ -128,25 +165,16 @@ app.post("/api/diagnose", upload.fields([{ name: "lesson", maxCount: 1 }, { name
     }
     if (submissions.some((file) => file.size > 5 * 1024 * 1024)) return res.status(400).json({ error: "Each student submission must be 5 MB or smaller." });
 
-    const client = requireOpenAI();
-    const lessonUpload = await uploadForAnalysis(client, lesson, `lesson${extension(lesson.originalname)}`);
-    const submissionUploads = await Promise.all(submissions.map((file, index) => uploadForAnalysis(client, file, `student-${index + 1}${extension(file.originalname)}`)));
-    uploaded = [lessonUpload, ...submissionUploads];
-    const response = await client.responses.create({
-      model: process.env.OPENAI_DIAGNOSTIC_MODEL || "gpt-4o-mini",
-      store: false,
-      instructions: "You are Classroom Compass, a careful teacher-support analyst. Compare the lesson objectives with student work. Use only Student 1, Student 2, and so on. Do not identify people, infer protected traits, diagnose disabilities, or fabricate evidence. Return a concise instructional analysis in Spanish.",
-      input: [{ role: "user", content: inputFiles(lessonUpload, submissionUploads) }],
-      text: { format: { type: "json_schema", name: "class_diagnostic", strict: true, schema: diagnosticSchema } },
-    });
-    const analysis = JSON.parse(response.output_text);
+    const content = await inputFiles(lesson, submissions);
+    const analysis = JSON.parse(await routerText([
+      { role: "system", content: "You are Classroom Compass, a careful teacher-support analyst. Compare the lesson objectives with student work. Use only Student 1, Student 2, and so on. Do not identify people, infer protected traits, diagnose disabilities, or fabricate evidence. Return only valid JSON matching this schema: " + JSON.stringify(diagnosticSchema) },
+      { role: "user", content },
+    ]));
     const session = { id: crypto.randomUUID(), analysis, createdAt: new Date().toISOString() };
     sessions.set(session.id, session);
     await persistSession(session);
     res.json({ sessionId: session.id, analysis });
-  } catch (error) { next(error); } finally {
-    if (uploaded.length) await deleteUploadedFiles(requireOpenAI(), uploaded).catch(() => undefined);
-  }
+  } catch (error) { next(error); }
 });
 
 app.post("/api/chat", async (req, res, next) => {
@@ -154,14 +182,8 @@ app.post("/api/chat", async (req, res, next) => {
     const { sessionId, prompt } = req.body || {};
     const session = sessions.get(sessionId);
     if (!session || typeof prompt !== "string" || !prompt.trim()) return res.status(400).json({ error: "A diagnostic session and a question are required." });
-    const client = requireOpenAI();
-    const response = await client.responses.create({
-      model: process.env.OPENAI_DIAGNOSTIC_MODEL || "gpt-4o-mini",
-      store: false,
-      instructions: "You are Classroom Compass. Reply in Spanish in no more than 150 words. Give practical, evidence-bound teaching guidance. Never reveal or guess student identities.",
-      input: `Diagnostic: ${JSON.stringify(session.analysis)}\n\nTeacher question: ${prompt}`,
-    });
-    res.json({ text: response.output_text });
+    const response = await routerRequest("/chat/completions", { model: process.env.OPENROUTER_MODEL || "openrouter/auto", messages: [{ role: "system", content: "You are Classroom Compass. Reply in Spanish in no more than 150 words. Give practical, evidence-bound teaching guidance. Never reveal or guess student identities." }, { role: "user", content: `Diagnostic: ${JSON.stringify(session.analysis)}\n\nTeacher question: ${prompt}` }] });
+    res.json({ text: response.choices?.[0]?.message?.content || "No response returned." });
   } catch (error) { next(error); }
 });
 
@@ -194,32 +216,22 @@ async function deckBuffer(slides) {
 }
 
 app.post("/api/assets", upload.single("lesson"), async (req, res, next) => {
-  let uploaded = [];
   try {
     const session = req.body?.sessionId ? sessions.get(req.body.sessionId) : null;
     const lesson = req.file;
     if (!session && !lesson) return res.status(400).json({ error: "Upload lesson material before generating teaching assets." });
     if (lesson && !allowedLesson.has(extension(lesson.originalname))) return res.status(400).json({ error: "Lessons accept PDF, PPTX, TXT, or MD." });
-    const client = requireOpenAI();
-    let source;
-    if (session) source = `Diagnostic: ${JSON.stringify(session.analysis)}`;
-    else {
-      const lessonUpload = await uploadForAnalysis(client, lesson, `lesson${extension(lesson.originalname)}`);
-      uploaded = [lessonUpload];
-      source = [{ role: "user", content: [{ type: "input_text", text: "Create a lesson-aligned resource set from this teacher's lesson material." }, { type: "input_file", file_id: lessonUpload.id }] }];
-    }
+    const source = session
+      ? [{ type: "text", text: `Diagnostic: ${JSON.stringify(session.analysis)}` }]
+      : [{ type: "text", text: "Create a lesson-aligned resource set from this teacher's lesson material." }, await filePart(lesson, "Lesson")];
     const now = new Date().toISOString();
-    const planResponse = await client.responses.create({
-      model: process.env.OPENAI_ASSET_MODEL || "gpt-4o-mini",
-      store: false,
-      instructions: `You create concise, editable classroom materials in Spanish from teacher material. When a diagnostic is provided, target its identified learning need; otherwise, anchor all content to the lesson objectives. Make 4-7 presentation slides, a 45-60 second audio recap, a contextual practice set in Markdown, and 1-5 review events. Every calendar start/end must be valid ISO 8601 timestamps after ${now}. Use no student names.`,
-      input: source,
-      text: { format: { type: "json_schema", name: "teaching_assets", strict: true, schema: assetSchema } },
-    });
-    const plan = JSON.parse(planResponse.output_text);
+    const plan = JSON.parse(await routerText([
+      { role: "system", content: `You create concise, editable classroom materials in Spanish from teacher material. When a diagnostic is provided, target its identified learning need; otherwise, anchor all content to the lesson objectives. Make 4-7 presentation slides, a 45-60 second audio recap, a contextual practice set in Markdown, and 1-5 review events. Every calendar start/end must be valid ISO 8601 timestamps after ${now}. Use no student names. Return only valid JSON matching this schema: ${JSON.stringify(assetSchema)}` },
+      { role: "user", content: source },
+    ]));
     const [pptx, speech] = await Promise.all([
       deckBuffer(plan.slides),
-      client.audio.speech.create({ model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts", voice: "coral", input: plan.audioScript, response_format: "mp3", instructions: "Habla en español con calidez, claridad y ritmo de repaso para un aula." }),
+      routerRequest("/audio/speech", { model: process.env.OPENROUTER_TTS_MODEL || "openai/gpt-4o-mini-tts-2025-12-15", voice: process.env.OPENROUTER_TTS_VOICE || "coral", input: plan.audioScript, response_format: "mp3", provider: { options: { openai: { instructions: "Habla en español con calidez, claridad y ritmo de repaso para un aula." } } } }, true),
     ]);
     const audio = Buffer.from(await speech.arrayBuffer());
     res.json({
@@ -230,9 +242,7 @@ app.post("/api/assets", upload.single("lesson"), async (req, res, next) => {
         calendar: { name: "classroom-compass-review-plan.ics", type: "text/calendar", data: Buffer.from(calendarIcs(plan.calendar)).toString("base64") },
       },
     });
-  } catch (error) { next(error); } finally {
-    if (uploaded.length) await deleteUploadedFiles(requireOpenAI(), uploaded).catch(() => undefined);
-  }
+  } catch (error) { next(error); }
 });
 
 app.use((error, _req, res, _next) => {
