@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07142d" />
+    <title>Classroom Compass</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="Classroom Compass home">
+          <span class="brand-mark"><i></i><i></i><i></i></span>
+          <span>classroom<span>compass</span></span>
+        </a>
+        <div class="class-pills" aria-label="Class context">
+          <button class="context-pill"><span class="tiny-dot"></span> AP Calculus AB <b>⌄</b></button>
+          <button class="context-pill">Unit 2 · Differentiation <b>⌄</b></button>
+        </div>
+        <div class="top-actions">
+          <button class="help-button" title="Help">?</button>
+          <button class="teacher-button"><span>MC</span> Ms. Chen <b>⌄</b></button>
+        </div>
+      </header>
+
+      <main id="top">
+        <section class="hero">
+          <div>
+            <p class="eyebrow"><span></span> TEACHER WORKSPACE</p>
+            <h1>See what your class<br />needs <em>next.</em></h1>
+            <p class="hero-copy">Turn today’s lesson and student work into an actionable, differentiated plan — in one focused view.</p>
+          </div>
+          <div class="date-card">
+            <div><span>THURSDAY</span><strong>12</strong><small>SEPTEMBER</small></div>
+            <p><b>Today’s focus</b><br />Chain rule &amp; applications</p>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="Workspace sections">
+          <button class="active" data-tab="overview">Overview</button>
+          <button data-tab="students">Student insights <span>3</span></button>
+          <button data-tab="assets">Teaching assets</button>
+        </nav>
+
+        <section class="workspace" id="overview">
+          <section class="lesson-card panel">
+            <div class="section-heading">
+              <div><p class="step">01 — TODAY'S MATERIAL</p><h2>What are you teaching?</h2></div>
+              <span class="status ready"><i></i> Ready to analyze</span>
+            </div>
+            <p class="muted">Upload your lesson material so Compass can anchor the diagnosis to today’s objectives.</p>
+            <div class="lesson-input-row">
+              <label class="upload-zone" id="lesson-drop" for="lesson-file">
+                <input id="lesson-file" type="file" accept=".pdf,.ppt,.pptx,.txt,.md" />
+                <span class="file-icon">↥</span>
+                <span><b id="lesson-label">Drop a PDF or PowerPoint here</b><small>or browse files · PDF, PPTX up to 20 MB</small></span>
+              </label>
+              <button class="outline-btn" id="use-demo">Use sample lesson</button>
+            </div>
+            <div class="lesson-loaded" id="lesson-loaded">
+              <span class="document-icon">▤</span>
+              <span><b>Unit 2 — Derivatives in motion</b><small>Sample lesson · 14 slides · objectives detected</small></span>
+              <button id="clear-lesson" aria-label="Remove lesson">×</button>
+            </div>
+            <div class="objectives">
+              <span>Detected objectives</span>
+              <b>Apply the chain rule</b><b>Interpret rate of change</b><b>Model motion</b>
+            </div>
+          </section>
+
+          <section class="submission-card panel">
+            <div class="section-heading">
+              <div><p class="step">02 — STUDENT WORK</p><h2>Bring in their thinking.</h2></div>
+              <button class="link-button" id="load-samples">Load 3 sample submissions</button>
+            </div>
+            <p class="muted">Upload exit tickets, homework, or written responses. Student names stay private in this session.</p>
+            <label class="student-drop" for="student-files">
+              <input id="student-files" type="file" multiple accept=".pdf,.txt,.md" />
+              <span class="plus">+</span><b>Add student work</b><small>PDF, TXT or MD · up to 5 MB each</small>
+            </label>
+            <div class="submission-list" id="submission-list" aria-live="polite"></div>
+          </section>
+
+          <aside class="run-card">
+            <div class="compass-orb"><span>✦</span></div>
+            <p class="eyebrow centered">COMPASS DIAGNOSTIC</p>
+            <h2>Find the pattern<br />behind the work.</h2>
+            <p>We’ll identify strengths, sticking points, and the best next move for every learner.</p>
+            <button class="primary-btn" id="diagnose"><span>Analyze class work</span><b>→</b></button>
+            <small><i>⌁</i> Uses session-only, anonymized data</small>
+          </aside>
+        </section>
+
+        <section class="empty-dashboard" id="empty-dashboard">
+          <span class="empty-ring">✦</span>
+          <div><h3>Your class picture will appear here.</h3><p>Add today’s material and student work, then run a diagnostic to reveal the next best teaching move.</p></div>
+        </section>
+
+        <section class="results hidden" id="results">
+          <div class="result-head">
+            <div><p class="eyebrow"><span></span> CLASS DIAGNOSTIC <small>DEMO DATA</small></p><h2>Here’s the learning signal.</h2><p>Based on 3 sample submissions · Generated just now</p></div>
+            <div class="result-actions"><button class="outline-btn" id="rerun">↻ Re-run analysis</button><button class="primary-btn compact" id="generate-assets">Create teaching assets <b>→</b></button></div>
+          </div>
+          <div class="signal-grid">
+            <article class="mastery-card dark-card"><p>CLASS MASTERY</p><div><strong>64</strong><span>%</span></div><small>Developing overall <b>↑ 8%</b> from last check-in</small><div class="spark-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
+            <article class="priority-card"><div class="warning-mark">!</div><p>PRIORITY MISCONCEPTION</p><h3>Confusing <em>inside</em> and <em>outside</em> functions</h3><span class="affected"><i>SA</i><i>SB</i> 2 students affected</span><button class="text-arrow" id="focus-gap">See evidence →</button></article>
+            <article class="next-card"><p>RECOMMENDED NEXT MOVE</p><h3>Start with a visual<br />function-machine reset.</h3><p>Then move into paired, real-world rate-of-change practice.</p><button class="text-arrow" id="generate-from-card">Build the lesson →</button></article>
+          </div>
+
+          <section class="matrix-panel panel">
+            <div class="section-heading"><div><p class="step">SKILL SNAPSHOT</p><h2>Where the class is now.</h2></div><span class="legend"><i class="high"></i> Secure <i class="med"></i> Developing <i class="low"></i> Needs attention</span></div>
+            <div class="skill-table">
+              <div class="skill-row header-row"><span>Learning objective</span><span>Class mastery</span><span>Student A</span><span>Student B</span><span>Student C</span><span></span></div>
+              <div class="skill-row"><b>Identify composite functions</b><span><strong>83%</strong><i class="meter high"><u style="width:83%"></u></i></span><i class="cell secure">✓</i><i class="cell secure">✓</i><i class="cell developing">~</i><button aria-label="View identify composite functions">→</button></div>
+              <div class="skill-row"><b>Apply the chain rule</b><span><strong>51%</strong><i class="meter low"><u style="width:51%"></u></i></span><i class="cell developing">~</i><i class="cell critical">!</i><i class="cell critical">!</i><button aria-label="View apply chain rule">→</button></div>
+              <div class="skill-row"><b>Interpret derivative in context</b><span><strong>72%</strong><i class="meter med"><u style="width:72%"></u></i></span><i class="cell secure">✓</i><i class="cell developing">~</i><i class="cell developing">~</i><button aria-label="View interpret derivative">→</button></div>
+            </div>
+          </section>
+
+          <section class="insight-grid">
+            <article class="misconception-panel panel" id="misconception-detail"><div class="section-heading"><div><p class="step">LOOK CLOSER</p><h2>The misconception, explained.</h2></div><span class="severity">HIGH PRIORITY</span></div><div class="quote"><span>“</span><p>Several students differentiate the outer function but leave the inner expression unchanged.</p></div><div class="root-cause"><b>Likely root cause</b><p>Students recognize the derivative rule, but don’t yet see a composite function as a sequence of transformations.</p></div><div class="affected-students"><b>Affected learners</b><span><i>SA</i> Student A</span><span><i>SB</i> Student B</span><button class="text-arrow" id="student-view">View individual insights →</button></div></article>
+            <article class="teacher-note"><span class="note-star">✦</span><p class="step">A NOTE FOR YOU</p><h3>Don’t reteach the rule.<br /><em>Rebuild the picture.</em></h3><p>Use one color for the inner function and another for its change. Ask: “What changes first?” before asking students to calculate.</p><button id="copy-note">Copy teaching note</button></article>
+          </section>
+
+          <section class="asset-section" id="asset-section">
+            <div class="section-heading"><div><p class="step">03 — REMEDIATION STUDIO</p><h2>Make the next lesson count.</h2><p class="muted">Generate connected, editable materials from this class’s actual needs.</p></div><span class="asset-status" id="asset-status">Ready when you are</span></div>
+            <div class="asset-grid">
+              <article class="asset-card"><span class="asset-icon slides">▥</span><p>VISUAL LESSON</p><h3>Targeted slide deck</h3><small>6 editable slides · misconception-first</small><button data-download="pptx">Generate deck <b>→</b></button></article>
+              <article class="asset-card"><span class="asset-icon audio">⌁</span><p>AUDIO RECAP</p><h3>60-second explanation</h3><small>Warm, clear voice · classroom-ready</small><button data-download="audio">Generate audio <b>→</b></button></article>
+              <article class="asset-card"><span class="asset-icon practice">✣</span><p>REAL-WORLD PRACTICE</p><h3>Applied exercise set</h3><small>3 problems · scaffolded support</small><button data-download="practice">Generate practice <b>→</b></button></article>
+              <article class="asset-card"><span class="asset-icon plan">▧</span><p>REVIEW PLAN</p><h3>Targeted mini-sessions</h3><small>3 calendar blocks · ready to share</small><button data-download="calendar">Generate plan <b>→</b></button></article>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <aside class="assistant-panel" aria-label="Compass assistant">
+      <div class="assistant-top"><div class="assistant-avatar">✦</div><div><b>Compass</b><span><i></i> Ready to help</span></div><button aria-label="Close assistant">×</button></div>
+      <div class="chat" id="chat"><div class="chat-bubble bot">I’m ready to help you turn today’s learning signals into a plan. <b>Try loading the sample submissions</b> to see how it works.</div></div>
+      <div class="suggestions"><button data-prompt="What are the largest gaps?">Largest gaps</button><button data-prompt="How should I reteach this?">Plan a reteach</button></div>
+      <form class="chat-input" id="chat-form"><input id="chat-text" aria-label="Ask Compass" placeholder="Ask about your class…" /><button aria-label="Send message">↑</button></form>
+    </aside>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
